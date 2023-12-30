@@ -55,11 +55,12 @@ void loop() {
   int sensorValueX = analogRead(sensorPinX);
   DEBUG_PRINT("sensorValueX=");
   DEBUG_PRINTLN(sensorValueX);
-
-  double x_norm = (sensorValueX - 512) / 410.0;
-  if (x_norm >= -0.01 && x_norm <= 0.01) {
-    x_norm = 0.0;
+ 
+  if (abs(sensorValueX - 512) <= 1) {
+    sensorValueX = 512;
   }
+  double x_norm = (sensorValueX - 512) / 410.0;
+
   DEBUG_PRINT("x_norm=");
   DEBUG_PRINTLN(x_norm);
 
