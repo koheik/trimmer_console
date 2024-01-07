@@ -9,45 +9,108 @@
 #define DEBUG_PRINTLN(x)
 #endif
 
+class Lever {
+  uint8_t pin;
+  int prev;
+  double norm_prev;
+  double gain;
+
+public:
+  Lever(uint8_t p) {
+    this->pin = p;
+  }
+
+  void init(double gain) {
+    pinMode(pin, INPUT);
+    this->prev = 0;
+    this->norm_prev = 0.0;
+    this->gain = gain;
+  }
+
+  double update(double t_delta) {
+    int sensorValue = analogRead(pin);
+    DEBUG_PRINT("sensorValue=");
+    DEBUG_PRINTLN(sensorValue);
+
+    if (abs(sensorValue - 512) <= 15) {
+      sensorValue = 512;
+    }
+    double norm = (sensorValue - 512) / 410.0;
+    int delta = (int)(gain * t_delta * (norm_prev + norm) / 2.0);
+    norm_prev = norm;
+
+    int v = prev + delta;
+    
+    if (v > 127) {
+      v = 127;
+    }
+    if (v < -127) {
+      v = - 127;
+    }
+    prev = v;
+
+    return v;
+  }
+};
+
+class Button {
+  uint8_t pin;
+  int prev;
+
+public:
+  Button(uint8_t p) {
+    pin = p;
+  }
+
+  void init() {
+    pinMode(pin, INPUT_PULLUP);
+    prev = 0;
+  }
+
+  int update() {
+    int b = 1 - digitalRead(pin);
+    DEBUG_PRINT("buttonValue=");
+    DEBUG_PRINTLN(b);
+
+    prev = b;
+    return b;
+  }
+};
+
 Joystick_ Joystick(
   JOYSTICK_DEFAULT_REPORT_ID,
   JOYSTICK_TYPE_JOYSTICK,
-  2, 0,                 // button, hat
-  true, false, false,    // x, y, z
+  4, 0,                 // button, hat
+  true, true, false,    // x, y, z
   false, false, false,  // rx, ry, rz
   false, false,         // rudder, throttler
   false, false, false   // accel, brake, steering
 );
 
 unsigned long t_prev;
-int sensorPinX;
-int sensorPinB1;
-int sensorPinB2;
-int x_prev;
-double x_norm_prev;
-double x_gain;
-int b1_prev;
-int b2_prev;
+
+Lever xLever(A0);
+Lever yLever(A1);
+
+Button b0(A2);
+Button b1(A3);
+Button b2(A4);
+Button b3(A5);
 
 void setup() {
   Joystick.setXAxisRange(-127, 127);
+  Joystick.setYAxisRange(-127, 127);
   Joystick.begin(false);
 
-  sensorPinX = A0;
-  sensorPinB1 = A2;
-  sensorPinB2 = A3;
+  xLever.init(0.25);
+  yLever.init(0.25);
 
-  pinMode(sensorPinX, INPUT);
-  pinMode(sensorPinB1, INPUT);
-  pinMode(sensorPinB2, INPUT);
+  b0.init();
+  b1.init();
+  b2.init();
+  b3.init();
 
   t_prev = millis();
-  x_prev = 0;
-  x_norm_prev = 0.0;
-  x_gain = 0.25;
-
-  b1_prev = 0;
-  b2_prev = 0;
 }
 
 void loop() {
@@ -65,53 +128,20 @@ void loop() {
   DEBUG_PRINT("t_delta=");
   DEBUG_PRINTLN(t_delta);
 
-  int sensorValueX = analogRead(sensorPinX);
-  DEBUG_PRINT("sensorValueX=");
-  DEBUG_PRINTLN(sensorValueX);
-
-  if (abs(sensorValueX - 512) <= 3) {
-    sensorValueX = 512;
-  }
-  double x_norm = (sensorValueX - 512) / 410.0;
-
-  DEBUG_PRINT("x_norm=");
-  DEBUG_PRINTLN(x_norm);
-
-  int x_delta = (int)(x_gain * t_delta * (x_norm_prev + x_norm) / 2.0);
-  int x = x_prev + x_delta;
-  if (x > 127) {
-    x = 127;
-  }
-  if (x < -127) {
-    x = - 127;
-  }
-  DEBUG_PRINT("x=");
-  DEBUG_PRINTLN(x);
+  int x = xLever.update(t_delta);
+  int y = yLever.update(t_delta);
 
   Joystick.setXAxis(x);
+  Joystick.setXAxis(y);
 
-  int b1 = digitalRead(sensorPinB1);
-  int b2 = digitalRead(sensorPinB2);
-
-  DEBUG_PRINT("b1=");
-  DEBUG_PRINTLN(b1);
-
-  DEBUG_PRINT("b2=");
-  DEBUG_PRINTLN(b2);
-
-  if (b1 != b1_prev) {
-    Joystick.setButton(0, b1);
-  }
-
-  if (b2 != b2_prev) {
-    Joystick.setButton(1, b2);
-  }
-
+  Joystick.setButton(0, b0.update());
+  Joystick.setButton(1, b1.update());
+  Joystick.setButton(2, b2.update());
+  Joystick.setButton(3, b3.update());
   Joystick.sendState();
 
   t_prev = t;
-  x_prev = x;
-  x_norm_prev = x_norm;
 
   delay(10);
 }
+ 
