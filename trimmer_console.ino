@@ -132,7 +132,7 @@ void loop() {
   int y = yLever.update(t_delta);
 
   Joystick.setXAxis(x);
-  Joystick.setXAxis(y);
+  Joystick.setYAxis(y);
 
   Joystick.setButton(0, b0.update());
   Joystick.setButton(1, b1.update());
@@ -142,6 +142,6 @@ void loop() {
 
   t_prev = t;
 
-  delay(10);
+  delay(20);
 }
  
